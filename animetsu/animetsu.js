@@ -2,196 +2,126 @@ const BASE_URL = "https://animetsu.net";
 const API_URL = `${BASE_URL}/v2/api/anime`;
 const PROXY = "https://swiftstream.top/proxy";
 
-/**
- * Safe fetch wrapper (fixes header + fallback issues)
- */
 async function soraFetch(url, options = {}) {
     const headers = options.headers || {};
 
-    if (!headers["User-Agent"]) {
-        headers["User-Agent"] =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36";
-    }
+    headers["User-Agent"] =
+        headers["User-Agent"] ||
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36";
 
     headers["Accept"] = "application/json";
     headers["Referer"] = BASE_URL;
 
-    try {
-        if (typeof fetchv2 === "function") {
-            return await fetchv2(url, {
-                headers,
-                method: options.method || "GET",
-                body: options.body || null
-            });
-        }
+    const fn = typeof fetchv2 === "function" ? fetchv2 : fetch;
 
-        return await fetch(url, {
-            headers,
-            method: options.method || "GET",
-            body: options.body || null
-        });
-    } catch (e) {
-        try {
-            return await fetch(url, {
-                headers,
-                method: options.method || "GET",
-                body: options.body || null
-            });
-        } catch (err) {
-            return null;
-        }
-    }
+    return fn(url, {
+        method: options.method || "GET",
+        headers,
+        body: options.body || null
+    });
 }
 
-/**
- * SEARCH
- */
-async function searchResults(keyword) {
+/* IMPORTANT: NO JSON STRINGIFY */
+async function searchResults(query) {
     try {
-        const response = await soraFetch(
-            `${API_URL}/search/?query=${encodeURIComponent(keyword)}`
+        const res = await soraFetch(
+            `${API_URL}/search/?query=${encodeURIComponent(query)}`
         );
 
-        if (!response) return JSON.stringify([]);
+        const json = await res.json();
 
-        const json = await response.json();
+        const list = Array.isArray(json?.data)
+            ? json.data
+            : Array.isArray(json?.results)
+            ? json.results
+            : [];
 
-        const animeList =
-            Array.isArray(json?.data)
-                ? json.data
-                : Array.isArray(json?.results)
-                ? json.results
-                : Array.isArray(json)
-                ? json
-                : [];
-
-        const results = animeList.map((anime) => ({
-            title: anime.title || anime.name || "",
-            image: anime.poster || anime.image || "",
-            href: `${BASE_URL}/anime/${anime.id}`
+        return list.map(a => ({
+            title: a.title || a.name || "",
+            image: a.poster || a.image || "",
+            href: `${BASE_URL}/anime/${a.id}`
         }));
-
-        return JSON.stringify(results);
-    } catch (e) {
-        return JSON.stringify([]);
+    } catch {
+        return [];
     }
 }
 
-/**
- * DETAILS
- */
 async function extractDetails(url) {
     try {
-        const parts = url.split("/").filter(Boolean);
-        const animeId = parts[parts.length - 1];
+        const id = url.split("/").filter(Boolean).pop();
 
-        const response = await soraFetch(`${API_URL}/info/${animeId}`);
-        if (!response) return JSON.stringify([]);
+        const res = await soraFetch(`${API_URL}/info/${id}`);
+        const json = await res.json();
 
-        const json = await response.json();
-
-        return JSON.stringify([
-            {
-                description: json.description || json.synopsis || "",
-                aliases: (json.alternativeTitles || []).join(", "),
-                airdate: json.releaseDate || json.year || ""
-            }
-        ]);
-    } catch (e) {
-        return JSON.stringify([]);
+        return {
+            description: json.description || json.synopsis || "",
+            aliases: json.alternativeTitles?.join(", ") || "",
+            airdate: json.releaseDate || json.year || ""
+        };
+    } catch {
+        return {};
     }
 }
 
-/**
- * EPISODES
- */
 async function extractEpisodes(url) {
     try {
-        const parts = url.split("/").filter(Boolean);
-        const animeId = parts[parts.length - 1];
+        const id = url.split("/").filter(Boolean).pop();
 
-        const response = await soraFetch(`${API_URL}/eps/${animeId}`);
-        if (!response) return JSON.stringify([]);
+        const res = await soraFetch(`${API_URL}/eps/${id}`);
+        const json = await res.json();
 
-        const json = await response.json();
+        const list = json.episodes || json.data || [];
 
-        const epList =
-            Array.isArray(json?.episodes)
-                ? json.episodes
-                : Array.isArray(json?.data)
-                ? json.data
-                : Array.isArray(json)
-                ? json
-                : [];
-
-        const episodes = epList.map((ep) => {
-            const epNumber = ep.number ?? ep.episodeNumber ?? 0;
-
+        return list.map(ep => {
+            const n = ep.number ?? ep.episodeNumber ?? 0;
             return {
-                href: `${animeId}/${epNumber}`,
-                number: Number(epNumber)
+                href: `${id}/${n}`,
+                number: Number(n)
             };
         });
-
-        return JSON.stringify(episodes);
-    } catch (e) {
-        return JSON.stringify([]);
+    } catch {
+        return [];
     }
 }
 
-/**
- * STREAM
- */
 async function extractStreamUrl(url) {
     try {
         const parts = url.split("/").filter(Boolean);
 
-        const episode = parts[parts.length - 1];
-        const animeId = parts[parts.length - 2];
+        const episode = parts.pop();
+        const animeId = parts.pop();
 
-        const response = await soraFetch(
+        const res = await soraFetch(
             `${API_URL}/oppai/${animeId}/${episode}?server=default&source_type=sub`
         );
 
-        if (!response) {
-            return JSON.stringify({ streams: [], subtitles: [] });
-        }
+        const json = await res.json();
 
-        const json = await response.json();
-
-        const sources = Array.isArray(json?.sources) ? json.sources : [];
-
-        const streams = sources.map((source) => {
-            let streamUrl = source.url;
-
-            if (streamUrl?.startsWith("/")) {
-                streamUrl = `${PROXY}${streamUrl}`;
+        const streams = (json.sources || []).map(s => ({
+            title: s.quality || "Auto",
+            streamUrl: s.url.startsWith("/")
+                ? `${PROXY}${s.url}`
+                : s.url,
+            headers: {
+                Referer: BASE_URL
             }
+        }));
 
-            return {
-                title: source.quality || "Auto",
-                streamUrl,
-                headers: {
-                    Referer: BASE_URL
-                }
-            };
-        });
+        const subtitles = (json.subs || []).map(s => ({
+            url: s.url,
+            lang: s.lang || "unknown"
+        }));
 
-        const subtitles = Array.isArray(json?.subs)
-            ? json.subs.map((s) => ({
-                  url: s.url,
-                  lang: s.lang || "unknown"
-              }))
-            : [];
-
-        return JSON.stringify({
-            streams,
-            subtitles
-        });
-    } catch (e) {
-        return JSON.stringify({
-            streams: [],
-            subtitles: []
-        });
+        return { streams, subtitles };
+    } catch {
+        return { streams: [], subtitles: [] };
     }
 }
+
+/* CRITICAL PART */
+module.exports = {
+    searchResults,
+    extractDetails,
+    extractEpisodes,
+    extractStreamUrl
+};
