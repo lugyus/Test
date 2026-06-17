@@ -1,15 +1,15 @@
 {
   "sourceName": "Animetsu",
-  "iconUrl": "https://animetsu.net/favicon.ico",
+  "iconUrl": "https://animetsu.live/favicon.ico",
   "author": {
-    "name": "Lugyus",
-    "icon": "https://openai.com/favicon.ico"
+    "name": "Sora Developer",
+    "icon": "https://animetsu.live/favicon.ico"
   },
   "version": "1.0.0",
   "language": "English",
-  "baseUrl": "https://animetsu.net",
-  "searchBaseUrl": "https://animetsu.net/v2/api/anime/search/?query=",
-  "scriptUrl": "https://raw.githubusercontent.com/lugyus/Test/refs/heads/main/animetsu/animetsu.js",
+  "baseUrl": "https://animetsu.live",
+  "searchBaseUrl": "https://animetsu.live/search?keyword=",
+  "scriptUrl": "https://raw.githubusercontent.com/sora-modules/animetsu/main/module.js",
   "type": "anime",
   "streamType": "HLS",
   "asyncJS": true,
