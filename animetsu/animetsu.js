@@ -14,25 +14,33 @@ async function soraFetch(url, options = { headers: {}, method: 'GET', body: null
     }
 }
 
-/** Search anime titles by keyword */
+/** Search anime titles by keyword using the correct API endpoint from HAR file */
 async function searchResults(keyword) {
     try {
-        const url = `https://animetsu.live/search?q=${encodeURIComponent(keyword)}`;
+        const url = `https://animetsu.net/v2/api/anime/search?page=1&per_page=12&q=${encodeURIComponent(keyword)}`;
         const response = await soraFetch(url);
-        if (!response) return [];
-        const html = await response.text();
+        if (!response) return JSON.stringify([]);
+        const data = await response.json();
 
-        const results = [];
-        const regex = /<div class="anime-card">[\s\S]*?<a href="([^"]+)"[^>]*>\s*<img src="([^"]+)"[^>]*>\s*<h3[^>]*>([^<]+)<\/h3>/gi;
-        let match;
-        while ((match = regex.exec(html)) !== null) {
-            results.push({
-                title: match[3],
-                image: match[2],
-                href: match[1]
-            });
+        // Check if data.results exists
+        if (data && data.results) {
+            const results = data.results.map(anime => ({
+                title: anime.title.english || anime.title.romaji || anime.title.native,
+                image: anime.cover_image?.large,
+                href: `https://animetsu.net/anime/${anime.id}`,
+                description: anime.description,
+                total_eps: anime.total_eps,
+                start_date: anime.start_date,
+                end_date: anime.end_date,
+                score: anime.average_score,
+                genres: anime.genres,
+                trailer: anime.trailer,
+                season: anime.season
+            }));
+            return JSON.stringify(results);
+        } else {
+            return JSON.stringify([]);
         }
-        return JSON.stringify(results);
     } catch (e) {
         return JSON.stringify([]);
     }
@@ -73,6 +81,7 @@ async function extractEpisodes(url) {
         if (!response) return [];
         const html = await response.text();
 
+        // Example pattern, adjust as needed
         const episodes = [];
         const regex = /<a href="([^"]+)" class="episode-link">Episode (\d+)<\/a>/gi;
         let match;
