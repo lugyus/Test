@@ -113,14 +113,8 @@ async function extractStreamUrl(url) {
         const [animeId, episode] = url.split("|");
 
         const serverRes = await soraFetch(
-            `${BASE_URL}/v2/api/anime/servers/${animeId}/${episode}`
+            `https://animetsu.net/v2/api/anime/servers/${animeId}/${episode}`
         );
-
-        if (!serverRes) {
-            return JSON.stringify({
-                streams: []
-            });
-        }
 
         const servers = await serverRes.json();
 
@@ -128,33 +122,24 @@ async function extractStreamUrl(url) {
             (servers.find(x => x.default) || servers[0])?.id || "kite";
 
         const streamRes = await soraFetch(
-            `${BASE_URL}/v2/api/anime/oppai/${animeId}/${episode}?server=${server}&source_type=sub`
+            `https://animetsu.net/v2/api/anime/oppai/${animeId}/${episode}?server=${server}&source_type=sub`
         );
-
-        if (!streamRes) {
-            return JSON.stringify({
-                streams: []
-            });
-        }
 
         const data = await streamRes.json();
 
         const streams = [];
 
         for (const source of (data.sources || [])) {
-            let streamUrl = source.url;
-
-            if (streamUrl.startsWith("/")) {
-                streamUrl =
-                    "https://swiftstream.top/proxy" + streamUrl;
-            }
 
             streams.push({
                 title: source.quality || "Auto",
-                streamUrl: streamUrl,
+                streamUrl:
+                    source.need_proxy
+                        ? "https://swiftstream.top/proxy" + source.url
+                        : source.url,
                 headers: {
-                    Referer: BASE_URL,
-                    Origin: BASE_URL
+                    Referer: "https://animetsu.net/",
+                    Origin: "https://animetsu.net"
                 }
             });
         }
@@ -164,6 +149,7 @@ async function extractStreamUrl(url) {
             subtitles:
                 data.subs?.[0]?.url || ""
         });
+
     } catch (e) {
         return JSON.stringify({
             streams: []
