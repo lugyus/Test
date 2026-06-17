@@ -1,19 +1,21 @@
 {
-  "sourceName": "Animetsu Live",
-  "iconUrl": "https://animetsu.live/favicon.ico",
+  "sourceName": "Animetsu",
+  "iconUrl": "https://animetsu.net/favicon.ico",
   "author": {
-    "name": "AI Assistant",
-    "icon": "https://animetsu.live/favicon.ico"
+    "name": "Lugyus",
+    "icon": "https://animetsu.net/favicon.ico"
   },
   "version": "1.0.0",
   "language": "English",
-  "baseUrl": "https://animetsu.live",
-  "searchBaseUrl": "https://animetsu.live/search?q=",
+  "baseUrl": "https://animetsu.net",
+  "searchBaseUrl": "https://animetsu.net/v2/api/anime/search/?query=",
   "scriptUrl": "https://raw.githubusercontent.com/lugyus/sora-modules/refs/heads/main/animetsu/animetsu.js",
   "type": "anime",
   "streamType": "HLS",
   "asyncJS": true,
+  "quality": "1080p",
   "downloadSupport": true,
+  "softsub": true,
   "supportsSora": true,
   "supportsLuna": true,
   "supportsDartotsu": true,
